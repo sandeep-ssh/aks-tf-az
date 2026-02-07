@@ -1,0 +1,6 @@
+rgname                 = "dev-sandeep-rg"
+service_principal_name = "dev-sandeep-spn"
+keyvault_name          = "dev-sandeep-kv-101"
+SUB_ID = ""
+cluster_name = "dev-sandeep-cluster"
+node_pool_name = "devnp"

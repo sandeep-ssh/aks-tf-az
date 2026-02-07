@@ -1,0 +1,6 @@
+rgname                 = "stage-sandeep-rg"
+service_principal_name = "stage-sandeep-spn"
+keyvault_name          = "stage-sandeep-kv-101"
+SUB_ID = ""
+node_pool_name = "stagenp"
+cluster_name = "stage-sandeep-cluster"
