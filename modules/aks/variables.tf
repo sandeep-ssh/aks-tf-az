@@ -1,25 +1,36 @@
 variable "location" {
-
-}
- variable "resource_group_name" {}
-
-variable "service_principal_name" {
-  type = string
+  description = "Azure region where resources will be deployed"
+  type        = string
 }
 
-variable "ssh_public_key" {
-  default = ".ssh/id_rsa.pub"
+variable "resource_group_name" {
+  description = "Name of the resource group"
+  type        = string
 }
 
-variable "client_id" {}
-variable "client_secret" {
-  type = string
-  sensitive = true
+variable "cluster_name" {
+  description = "Name of the AKS cluster"
+  type        = string
 }
 
 variable "node_pool_name" {
-  
+  description = "Name of the default node pool"
+  type        = string
 }
-variable "cluster_name" {
-  
+
+variable "node_count" {
+  description = "Number of nodes in the default node pool"
+  type        = number
+  default     = 1
+}
+
+variable "vm_size" {
+  description = "VM size for AKS nodes"
+  type        = string
+  default     = "Standard_DS2_v2"
+}
+
+variable "ssh_public_key" {
+  description = "Public SSH key for AKS nodes"
+  type        = string
 }

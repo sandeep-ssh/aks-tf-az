@@ -1,0 +1,134 @@
+trigger:
+  branches:
+    include:
+      - main
+      - feature/*
+
+pool:
+  name: 'sashcell'
+
+variables:
+  TERRAFORM_VERSION: '1.5.7'
+  AZURE_SERVICE_CONNECTION: 'Azure subscription 1(68e4c6a4-43e4-4dca-a352-db3694c871c4)'
+
+stages:
+
+# =========================
+# VALIDATE
+# =========================
+- stage: Validate
+  jobs:
+  - job: terraform_validate
+    steps:
+
+    - checkout: self
+
+    - task: TerraformInstaller@1
+      inputs:
+        terraformVersion: $(TERRAFORM_VERSION)
+
+    - task: AzureCLI@2
+      inputs:
+        azureSubscription: $(AZURE_SERVICE_CONNECTION)
+        scriptType: bash
+        scriptLocation: inlineScript
+        inlineScript: |
+          az account show
+
+    - script: |
+        cd dev
+
+        rm -rf .terraform
+        rm -f .terraform.lock.hcl
+
+        terraform init \
+          -backend-config="resource_group_name=terraform-state-rg" \
+          -backend-config="storage_account_name=tfdevbackend2026sandy" \
+          -backend-config="container_name=tfstate" \
+          -backend-config="key=dev.terraform.tfstate" \
+          -backend-config="use_azuread_auth=true"
+
+        terraform validate
+      displayName: "Terraform Validate"
+
+
+# =========================
+# DEV DEPLOY
+# =========================
+- stage: Dev_Deploy
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+  jobs:
+  - job: terraform_apply_dev
+    steps:
+
+    - checkout: self
+
+    - task: TerraformInstaller@1
+      inputs:
+        terraformVersion: $(TERRAFORM_VERSION)
+
+    - task: AzureCLI@2
+      inputs:
+        azureSubscription: $(AZURE_SERVICE_CONNECTION)
+        scriptType: bash
+        scriptLocation: inlineScript
+        inlineScript: |
+          az account show
+
+    - script: |
+        cd dev
+
+        rm -rf .terraform
+        rm -f .terraform.lock.hcl
+
+        terraform init \
+          -backend-config="resource_group_name=terraform-state-rg" \
+          -backend-config="storage_account_name=tfdevbackend2026sandy" \
+          -backend-config="container_name=tfstate" \
+          -backend-config="key=dev.terraform.tfstate" \
+          -backend-config="use_azuread_auth=true"
+
+        terraform plan -out=tfplan
+        terraform apply -auto-approve tfplan
+      displayName: "Terraform Apply Dev"
+
+
+# =========================
+# STAGE DEPLOY
+# =========================
+- stage: Stage_Deploy
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+  jobs:
+  - job: terraform_apply_stage
+    steps:
+
+    - checkout: self
+
+    - task: TerraformInstaller@1
+      inputs:
+        terraformVersion: $(TERRAFORM_VERSION)
+
+    - task: AzureCLI@2
+      inputs:
+        azureSubscription: $(AZURE_SERVICE_CONNECTION)
+        scriptType: bash
+        scriptLocation: inlineScript
+        inlineScript: |
+          az account show
+
+    - script: |
+        cd staging
+
+        rm -rf .terraform
+        rm -f .terraform.lock.hcl
+
+        terraform init \
+          -backend-config="resource_group_name=terraform-state-rg" \
+          -backend-config="storage_account_name=tfstagebackend2026sandy" \
+          -backend-config="container_name=tfstate" \
+          -backend-config="key=stage.terraform.tfstate" \
+          -backend-config="use_azuread_auth=true"
+
+        terraform plan -out=tfplan
+        terraform apply -auto-approve tfplan
+      displayName: "Terraform Apply Stage"

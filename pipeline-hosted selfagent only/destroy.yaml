@@ -1,0 +1,95 @@
+trigger: none
+
+parameters:
+- name: environment
+  type: string
+  values:
+    - dev
+    - staging
+    - prod
+  default: dev
+
+# Use self-hosted agent ONLY
+pool:
+  name: 'sashcell'
+
+variables:
+  - group: terraform-secrets
+  - name: TERRAFORM_VERSION
+    value: '1.5.7'
+  - name: AZURE_SERVICE_CONNECTION
+    value: 'Azure-Service-Connection'
+
+# ======================================
+# PLAN DESTROY
+# ======================================
+stages:
+
+- stage: Plan_Destroy
+  jobs:
+    - job: terraform_plan_destroy
+      steps:
+
+        - task: TerraformInstaller@1
+          inputs:
+            terraformVersion: $(TERRAFORM_VERSION)
+
+        - task: AzureCLI@2
+          inputs:
+            azureSubscription: $(AZURE_SERVICE_CONNECTION)
+            scriptType: bash
+            scriptLocation: inlineScript
+            inlineScript: |
+              echo "Azure Context:"
+              az account show
+
+        - script: |
+            cd terraform/${{ parameters.environment }}
+
+            terraform init
+
+            terraform plan -destroy -out=tfdestroy
+
+          workingDirectory: $(System.DefaultWorkingDirectory)
+
+        - publish: terraform/${{ parameters.environment }}/tfdestroy
+          artifact: destroyPlan
+
+
+# ======================================
+# DESTROY (Requires Environment Approval)
+# ======================================
+- stage: Destroy
+  dependsOn: Plan_Destroy
+  condition: succeeded()
+
+  jobs:
+    - deployment: terraform_destroy
+      environment: ${{ parameters.environment }}
+      strategy:
+        runOnce:
+          deploy:
+            steps:
+
+              - task: TerraformInstaller@1
+                inputs:
+                  terraformVersion: $(TERRAFORM_VERSION)
+
+              - task: AzureCLI@2
+                inputs:
+                  azureSubscription: $(AZURE_SERVICE_CONNECTION)
+                  scriptType: bash
+                  scriptLocation: inlineScript
+                  inlineScript: |
+                    az account show
+
+              - download: current
+                artifact: destroyPlan
+
+              - script: |
+                  cd terraform/${{ parameters.environment }}
+
+                  terraform init
+
+                  terraform apply -auto-approve tfdestroy
+                workingDirectory: $(System.DefaultWorkingDirectory)
